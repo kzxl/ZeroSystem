@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0-windows;net8.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>ZeroSystem</RootNamespace>
+    <AssemblyName>ZeroSystem.Core</AssemblyName>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>ZeroSystem.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Phong Võ (kzxl)</Authors>
+    <Company>kzxl</Company>
+    <Product>ZeroSystem</Product>
+    <Description>Sovereign Windows Native, Kernel P/Invoke, DWM Desktop, and OS Internals Subsystem for ZeroPlatform with zero external dependencies.</Description>
+    <PackageTags>win32;kernel;vss;memory-optimizer;dwm;zero-dependency;sovereign;csharp</PackageTags>
+    <RepositoryUrl>https://github.com/kzxl/ZeroSystem</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+</Project>

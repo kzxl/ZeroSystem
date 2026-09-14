@@ -1,0 +1,31 @@
+name: CI Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Run Unit Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore ZeroSystem.slnx
+
+      - name: Build ZeroSystem (Release)
+        run: dotnet build ZeroSystem.slnx -c Release --no-restore
+
+      - name: Run Unit Tests
+        run: dotnet test ZeroSystem.slnx -c Release --no-build --verbosity normal
