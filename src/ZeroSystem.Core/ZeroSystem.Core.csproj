@@ -7,20 +7,16 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>ZeroSystem</RootNamespace>
     <AssemblyName>ZeroSystem.Core</AssemblyName>
-    
-    <!-- NuGet Package Metadata -->
     <PackageId>ZeroSystem.Core</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>Phong Võ (kzxl)</Authors>
-    <Company>kzxl</Company>
     <Product>ZeroSystem</Product>
-    <Description>Sovereign Windows Native, Kernel P/Invoke, DWM Desktop, and OS Internals Subsystem for ZeroPlatform with zero external dependencies.</Description>
-    <PackageTags>win32;kernel;vss;memory-optimizer;dwm;zero-dependency;sovereign;csharp</PackageTags>
-    <RepositoryUrl>https://github.com/kzxl/ZeroSystem</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Sovereign Windows Native, Kernel P/Invoke, Hardware Telemetry, DWM Desktop, and OS Internals Subsystem for ZeroPlatform with zero external dependencies.</Description>
+    <PackageTags>win32;kernel;hardware-telemetry;diagnostics;vss;memory-optimizer;dwm;zero-dependency;sovereign;csharp</PackageTags>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZeroPrimitives.Core" Version="1.3.0" />
+  </ItemGroup>
 
 </Project>

@@ -77,4 +77,54 @@ public class ZeroSystemTests
             }
         }
     }
+
+    [Fact]
+    public void HardwareTelemetry_GetCpuInfo_ReturnsValidMetrics()
+    {
+        var cpu = HardwareTelemetry.GetCpuInfo();
+        Assert.NotNull(cpu);
+        Assert.False(string.IsNullOrWhiteSpace(cpu.ModelName));
+        Assert.True(cpu.LogicalProcessorCount > 0);
+        Assert.True(cpu.PhysicalCoreCount > 0);
+        Assert.InRange(cpu.CpuUsagePercent, 0.0f, 100.0f);
+    }
+
+    [Fact]
+    public void HardwareTelemetry_GetMemoryInfo_ReturnsValidMetrics()
+    {
+        var mem = HardwareTelemetry.GetMemoryInfo();
+        Assert.NotNull(mem);
+        Assert.True(mem.TotalPhysicalBytes > 0);
+        Assert.True(mem.AvailablePhysicalBytes > 0);
+        Assert.True(mem.TotalPhysicalBytes >= mem.AvailablePhysicalBytes);
+        Assert.InRange(mem.MemoryLoadPercent, 0u, 100u);
+    }
+
+    [Fact]
+    public void HardwareTelemetry_GetStorageDrives_ReturnsValidPartitions()
+    {
+        var drives = HardwareTelemetry.GetStorageDrives();
+        Assert.NotNull(drives);
+        Assert.NotEmpty(drives);
+        var firstDrive = drives[0];
+        Assert.False(string.IsNullOrWhiteSpace(firstDrive.DriveLetter));
+    }
+
+    [Fact]
+    public void HardwareTelemetry_GetSnapshot_CapturesSubMillisecondHardwareReport()
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var snapshot = HardwareTelemetry.GetSnapshot();
+        sw.Stop();
+
+        Assert.NotNull(snapshot);
+        Assert.False(string.IsNullOrWhiteSpace(snapshot.MachineName));
+        Assert.False(string.IsNullOrWhiteSpace(snapshot.OsDescription));
+        Assert.NotNull(snapshot.Cpu);
+        Assert.NotNull(snapshot.Memory);
+        Assert.NotNull(snapshot.Storage);
+        Assert.NotNull(snapshot.Network);
+        Assert.NotNull(snapshot.Gpus);
+    }
 }
+
