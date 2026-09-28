@@ -160,4 +160,19 @@ internal static class NativeMethods
 
     public const uint SMTO_NORMAL = 0x0000;
     public const uint WM_SPAWN_WORKER = 0x052C;
+
+    // Console Window
+    public const int SW_HIDE = 0;
+    public const int SW_SHOW = 5;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr GetConsoleWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
 }
