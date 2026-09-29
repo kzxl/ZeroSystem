@@ -11,7 +11,7 @@
     <PackageProjectUrl>https://github.com/kzxl/ZeroSystem</PackageProjectUrl>
     <RepositoryUrl>https://github.com/kzxl/ZeroSystem.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageOutputPath>$(MSBuildThisFileDirectory)packages</PackageOutputPath>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)dist\packages</PackageOutputPath>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
