@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using ZeroSystem.Native;
 
 namespace ZeroSystem;
@@ -41,8 +40,9 @@ public sealed class StartupRegistrationStatus
 /// <summary>
 /// Sovereign, zero-dependency platform manager for background execution, console visibility,
 /// and user login / system boot autostart across Windows, Linux, and macOS.
+/// Partitioned into partial classes by operating system platform.
 /// </summary>
-public static class StartupManager
+public static partial class StartupManager
 {
     #region OS Platform Helpers
 
@@ -172,7 +172,7 @@ public static class StartupManager
 
     #endregion
 
-    #region Registration & Unregistration
+    #region Registration & Unregistration Dispatch
 
     /// <summary>
     /// Registers the application to start automatically on login or system boot.
@@ -189,9 +189,19 @@ public static class StartupManager
         string exe = string.IsNullOrEmpty(executablePath) ? GetCurrentExecutablePath() : executablePath!;
         string trimmedArgs = arguments?.Trim() ?? string.Empty;
 
-        return scope == StartupScope.UserLogin
-            ? RegisterUserLogin(appName, exe, trimmedArgs)
-            : RegisterSystemBoot(appName, exe, trimmedArgs);
+        if (scope == StartupScope.UserLogin)
+        {
+            if (IsWindows) return RegisterUserLoginWindows(appName, exe, trimmedArgs);
+            if (IsLinux) return RegisterUserLoginLinux(appName, exe, trimmedArgs);
+            if (IsMacOS) return RegisterUserLoginMac(appName, exe, trimmedArgs);
+            return (false, "Platform not supported for user autostart.");
+        }
+        else
+        {
+            if (IsWindows) return RegisterSystemBootWindows(appName, exe, trimmedArgs);
+            if (IsLinux) return RegisterSystemBootLinux(appName, exe, trimmedArgs);
+            return (false, "System boot service not supported on this platform.");
+        }
     }
 
     /// <summary>
@@ -202,9 +212,19 @@ public static class StartupManager
         if (string.IsNullOrWhiteSpace(appName))
             throw new ArgumentException("App name cannot be empty.", nameof(appName));
 
-        return scope == StartupScope.UserLogin
-            ? UnregisterUserLogin(appName)
-            : UnregisterSystemBoot(appName);
+        if (scope == StartupScope.UserLogin)
+        {
+            if (IsWindows) return UnregisterUserLoginWindows(appName);
+            if (IsLinux) return UnregisterUserLoginLinux(appName);
+            if (IsMacOS) return UnregisterUserLoginMac(appName);
+            return (false, "Platform not supported.");
+        }
+        else
+        {
+            if (IsWindows) return UnregisterSystemBootWindows(appName);
+            if (IsLinux) return UnregisterSystemBootLinux(appName);
+            return (false, "Platform not supported.");
+        }
     }
 
     /// <summary>
@@ -215,270 +235,19 @@ public static class StartupManager
         if (string.IsNullOrWhiteSpace(appName))
             throw new ArgumentException("App name cannot be empty.", nameof(appName));
 
-        return scope == StartupScope.UserLogin
-            ? GetUserLoginStatus(appName)
-            : GetSystemBootStatus(appName);
-    }
-
-    #endregion
-
-    #region UserLogin Implementation
-
-    private static (bool Success, string Message) RegisterUserLogin(string appName, string exePath, string args)
-    {
-        string fullCmd = string.IsNullOrEmpty(args) ? $"\"{exePath}\"" : $"\"{exePath}\" {args}";
-
-        if (IsWindows)
+        if (scope == StartupScope.UserLogin)
         {
-            string escapedCmd = fullCmd.Replace("\"", "\\\"");
-            string regArgs = $"add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"{appName}\" /t REG_SZ /d \"{escapedCmd}\" /f";
-            var (code, output, err) = RunProcess("reg.exe", regArgs);
-            if (code == 0)
-            {
-                return (true, $"User autostart registered for '{appName}'. Command: {fullCmd}");
-            }
-            return (false, $"Registry error: {err} {output}".Trim());
+            if (IsWindows) return GetUserLoginStatusWindows(appName);
+            if (IsLinux) return GetUserLoginStatusLinux(appName);
+            if (IsMacOS) return GetUserLoginStatusMac(appName);
+            return new StartupRegistrationStatus { AppName = appName, Scope = StartupScope.UserLogin, Details = "Platform not supported." };
         }
-        else if (IsLinux)
+        else
         {
-            try
-            {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "autostart");
-                Directory.CreateDirectory(dir);
-                string file = Path.Combine(dir, $"{appName.ToLowerInvariant()}.desktop");
-
-                string content = $"[Desktop Entry]\nType=Application\nName={appName}\nExec=\"{exePath}\" {args}\nHidden=false\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\n";
-                File.WriteAllText(file, content);
-                return (true, $"Linux desktop autostart written to: {file}");
-            }
-            catch (Exception ex)
-            {
-                return (false, $"Failed to create desktop autostart file: {ex.Message}");
-            }
+            if (IsWindows) return GetSystemBootStatusWindows(appName);
+            if (IsLinux) return GetSystemBootStatusLinux(appName);
+            return new StartupRegistrationStatus { AppName = appName, Scope = StartupScope.SystemBoot, Details = "Platform not supported." };
         }
-        else if (IsMacOS)
-        {
-            try
-            {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "LaunchAgents");
-                Directory.CreateDirectory(dir);
-                string plistPath = Path.Combine(dir, $"com.zerouniverse.{appName.ToLowerInvariant()}.plist");
-
-                var sb = new StringBuilder();
-                sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-                sb.AppendLine("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
-                sb.AppendLine("<plist version=\"1.0\">");
-                sb.AppendLine("<dict>");
-                sb.AppendLine($"    <key>Label</key><string>com.zerouniverse.{appName.ToLowerInvariant()}</string>");
-                sb.AppendLine("    <key>ProgramArguments</key>");
-                sb.AppendLine("    <array>");
-                sb.AppendLine($"        <string>{exePath}</string>");
-                if (!string.IsNullOrEmpty(args))
-                {
-                    foreach (var token in args.Split(' '))
-                    {
-                        if (!string.IsNullOrEmpty(token)) sb.AppendLine($"        <string>{token}</string>");
-                    }
-                }
-                sb.AppendLine("    </array>");
-                sb.AppendLine("    <key>RunAtLoad</key><true/>");
-                sb.AppendLine("    <key>KeepAlive</key><true/>");
-                sb.AppendLine("</dict>");
-                sb.AppendLine("</plist>");
-
-                File.WriteAllText(plistPath, sb.ToString());
-                return (true, $"macOS LaunchAgent created at: {plistPath}");
-            }
-            catch (Exception ex)
-            {
-                return (false, $"Failed to create macOS LaunchAgent: {ex.Message}");
-            }
-        }
-
-        return (false, "Platform not supported for user autostart.");
-    }
-
-    private static (bool Success, string Message) UnregisterUserLogin(string appName)
-    {
-        if (IsWindows)
-        {
-            string regArgs = $"delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"{appName}\" /f";
-            var (code, output, err) = RunProcess("reg.exe", regArgs);
-            if (code == 0)
-            {
-                return (true, $"User autostart unregistered for '{appName}'.");
-            }
-            return (false, $"Registry error: {err} {output}".Trim());
-        }
-        else if (IsLinux)
-        {
-            string file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "autostart", $"{appName.ToLowerInvariant()}.desktop");
-            if (File.Exists(file))
-            {
-                File.Delete(file);
-                return (true, $"Removed autostart file: {file}");
-            }
-            return (true, "No autostart file found.");
-        }
-        else if (IsMacOS)
-        {
-            string file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "LaunchAgents", $"com.zerouniverse.{appName.ToLowerInvariant()}.plist");
-            if (File.Exists(file))
-            {
-                File.Delete(file);
-                return (true, $"Removed LaunchAgent: {file}");
-            }
-            return (true, "No LaunchAgent found.");
-        }
-
-        return (false, "Platform not supported.");
-    }
-
-    private static StartupRegistrationStatus GetUserLoginStatus(string appName)
-    {
-        var status = new StartupRegistrationStatus
-        {
-            AppName = appName,
-            Scope = StartupScope.UserLogin
-        };
-
-        if (IsWindows)
-        {
-            var (code, output, _) = RunProcess("reg.exe", $"query \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"{appName}\"");
-            if (code == 0 && output.Contains(appName))
-            {
-                status.IsEnabled = true;
-                status.Details = output.Trim();
-            }
-            else
-            {
-                status.IsEnabled = false;
-                status.Details = "Registry entry not found.";
-            }
-        }
-        else if (IsLinux)
-        {
-            string file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "autostart", $"{appName.ToLowerInvariant()}.desktop");
-            status.IsEnabled = File.Exists(file);
-            status.Details = status.IsEnabled ? $"Config file: {file}" : "Desktop autostart file not found.";
-        }
-        else if (IsMacOS)
-        {
-            string file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "LaunchAgents", $"com.zerouniverse.{appName.ToLowerInvariant()}.plist");
-            status.IsEnabled = File.Exists(file);
-            status.Details = status.IsEnabled ? $"Plist: {file}" : "LaunchAgent plist not found.";
-        }
-
-        return status;
-    }
-
-    #endregion
-
-    #region SystemBoot Implementation
-
-    private static (bool Success, string Message) RegisterSystemBoot(string appName, string exePath, string args)
-    {
-        if (IsWindows)
-        {
-            string fullCmd = string.IsNullOrEmpty(args) ? $"\\\"{exePath}\\\"" : $"\\\"{exePath}\\\" {args}";
-            string schArgs = $"/create /tn \"{appName}\" /tr \"{fullCmd}\" /sc onstart /ru SYSTEM /rl HIGHEST /f";
-            var (code, output, err) = RunProcess("schtasks.exe", schArgs);
-            if (code == 0)
-            {
-                return (true, $"System boot task '{appName}' created successfully.\nCommand: {fullCmd}\nTrigger: Machine startup (SYSTEM account).");
-            }
-            return (false, $"Task Scheduler error (Run as Administrator required):\n{err} {output}".Trim());
-        }
-        else if (IsLinux)
-        {
-            try
-            {
-                string unit = $@"[Unit]
-Description={appName} Daemon Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=""{exePath}"" {args}
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-";
-                string unitPath = $"/etc/systemd/system/{appName.ToLowerInvariant()}.service";
-                File.WriteAllText(unitPath, unit);
-                RunProcess("systemctl", "daemon-reload");
-                RunProcess("systemctl", $"enable {appName.ToLowerInvariant()}");
-                return (true, $"Systemd service installed to {unitPath} and enabled.\nRun: sudo systemctl start {appName.ToLowerInvariant()}");
-            }
-            catch (Exception ex)
-            {
-                return (false, $"Systemd service installation failed (sudo required): {ex.Message}");
-            }
-        }
-
-        return (false, "System service not supported on this platform.");
-    }
-
-    private static (bool Success, string Message) UnregisterSystemBoot(string appName)
-    {
-        if (IsWindows)
-        {
-            var (code, output, err) = RunProcess("schtasks.exe", $"/delete /tn \"{appName}\" /f");
-            if (code == 0)
-            {
-                return (true, $"System boot task '{appName}' deleted.");
-            }
-            return (false, $"Failed to delete task: {err} {output}".Trim());
-        }
-        else if (IsLinux)
-        {
-            string svc = appName.ToLowerInvariant();
-            RunProcess("systemctl", $"stop {svc}");
-            RunProcess("systemctl", $"disable {svc}");
-            string unitPath = $"/etc/systemd/system/{svc}.service";
-            if (File.Exists(unitPath))
-            {
-                try { File.Delete(unitPath); } catch { }
-                RunProcess("systemctl", "daemon-reload");
-            }
-            return (true, $"Systemd service {svc} removed.");
-        }
-
-        return (false, "Platform not supported.");
-    }
-
-    private static StartupRegistrationStatus GetSystemBootStatus(string appName)
-    {
-        var status = new StartupRegistrationStatus
-        {
-            AppName = appName,
-            Scope = StartupScope.SystemBoot
-        };
-
-        if (IsWindows)
-        {
-            var (code, output, _) = RunProcess("schtasks.exe", $"/query /tn \"{appName}\" /fo LIST");
-            if (code == 0)
-            {
-                status.IsEnabled = true;
-                status.Details = output.Trim();
-            }
-            else
-            {
-                status.IsEnabled = false;
-                status.Details = "System task not found in Task Scheduler.";
-            }
-        }
-        else if (IsLinux)
-        {
-            var (code, output, _) = RunProcess("systemctl", $"status {appName.ToLowerInvariant()}");
-            status.IsEnabled = code == 0;
-            status.Details = output.Trim();
-        }
-
-        return status;
     }
 
     /// <summary>
@@ -486,17 +255,8 @@ WantedBy=multi-user.target
     /// </summary>
     public static (bool Success, string Message) StartSystemService(string appName)
     {
-        if (IsWindows)
-        {
-            var (code, output, err) = RunProcess("schtasks.exe", $"/run /tn \"{appName}\"");
-            return (code == 0, code == 0 ? $"Service '{appName}' started." : $"{err} {output}".Trim());
-        }
-        else if (IsLinux)
-        {
-            var (code, output, err) = RunProcess("systemctl", $"start {appName.ToLowerInvariant()}");
-            return (code == 0, code == 0 ? $"Service '{appName}' started." : $"{err} {output}".Trim());
-        }
-
+        if (IsWindows) return StartSystemServiceWindows(appName);
+        if (IsLinux) return StartSystemServiceLinux(appName);
         return (false, "Platform not supported.");
     }
 
@@ -505,30 +265,16 @@ WantedBy=multi-user.target
     /// </summary>
     public static (bool Success, string Message) StopSystemService(string appName, string? processImageName = null)
     {
-        if (IsWindows)
-        {
-            RunProcess("schtasks.exe", $"/end /tn \"{appName}\"");
-            if (!string.IsNullOrEmpty(processImageName))
-            {
-                var (code, output, _) = RunProcess("taskkill.exe", $"/f /im {processImageName}");
-                return (true, $"Stopped task '{appName}' and process '{processImageName}': {output.Trim()}");
-            }
-            return (true, $"Stopped task '{appName}'.");
-        }
-        else if (IsLinux)
-        {
-            var (code, output, err) = RunProcess("systemctl", $"stop {appName.ToLowerInvariant()}");
-            return (code == 0, code == 0 ? $"Service '{appName}' stopped." : $"{err} {output}".Trim());
-        }
-
+        if (IsWindows) return StopSystemServiceWindows(appName, processImageName);
+        if (IsLinux) return StopSystemServiceLinux(appName);
         return (false, "Platform not supported.");
     }
 
     #endregion
 
-    #region Process Runner Helper
+    #region Internal Process Runner Helper
 
-    private static (int ExitCode, string Output, string Error) RunProcess(string fileName, string arguments)
+    internal static (int ExitCode, string Output, string Error) RunProcess(string fileName, string arguments)
     {
         try
         {
