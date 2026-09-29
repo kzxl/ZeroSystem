@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
+using ZeroPrimitives.Core.Identifiers;
 
 namespace ZeroSystem;
 
@@ -10,6 +11,7 @@ namespace ZeroSystem;
 
 /// <summary>
 /// Comprehensive system and hardware telemetry snapshot captured at a single instant.
+/// Features a unique, time-ordered 128-bit <see cref="Uuid7"/> SnapshotId.
 /// </summary>
 public sealed record SystemDiagnosticsSnapshot(
     DateTime TimestampUtc,
@@ -21,7 +23,11 @@ public sealed record SystemDiagnosticsSnapshot(
     MemoryInfo Memory,
     IReadOnlyList<GpuAdapterInfo> Gpus,
     IReadOnlyList<DriveInfoSnapshot> Storage,
-    IReadOnlyList<NetworkAdapterInfo> Network);
+    IReadOnlyList<NetworkAdapterInfo> Network,
+    Uuid7 SnapshotId = default)
+{
+    public Uuid7 SnapshotId { get; init; } = SnapshotId == default ? Uuid7.NewUuid() : SnapshotId;
+}
 
 public sealed record CpuInfo(
     string ModelName,
@@ -88,7 +94,8 @@ public static partial class HardwareTelemetry
             Memory: GetMemoryInfo(),
             Gpus: GetGpuAdapters(),
             Storage: GetStorageDrives(),
-            Network: GetNetworkAdapters());
+            Network: GetNetworkAdapters(),
+            SnapshotId: Uuid7.NewUuid());
     }
 
     /// <summary>

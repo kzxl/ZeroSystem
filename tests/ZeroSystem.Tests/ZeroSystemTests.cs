@@ -125,6 +125,31 @@ public class ZeroSystemTests
         Assert.NotNull(snapshot.Storage);
         Assert.NotNull(snapshot.Network);
         Assert.NotNull(snapshot.Gpus);
+        Assert.NotEqual(ZeroPrimitives.Core.Identifiers.Uuid7.Empty, snapshot.SnapshotId);
+    }
+
+    [Fact]
+    public void HardwareTelemetryWatcher_ThrottlesExcessiveSampling()
+    {
+        // 2 samples per second, burst capacity of 2
+        var watcher = new HardwareTelemetryWatcher(samplesPerSecond: 2.0, burstCapacity: 2.0);
+
+        // Burst 2 queries immediately
+        bool first = watcher.TryGetSnapshot(out var s1);
+        bool second = watcher.TryGetSnapshot(out var s2);
+
+        // Third immediate query should be throttled
+        bool third = watcher.TryGetSnapshot(out var s3);
+
+        Assert.True(first);
+        Assert.NotNull(s1);
+        Assert.True(second);
+        Assert.NotNull(s2);
+        Assert.False(third);
+        Assert.Null(s3);
+
+        // Snapshot IDs must be distinct and non-empty
+        Assert.NotEqual(s1!.SnapshotId, s2!.SnapshotId);
     }
 }
 
