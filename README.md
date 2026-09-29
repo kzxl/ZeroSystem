@@ -1,7 +1,7 @@
 # ⚡ ZeroSystem: Sovereign Windows Native & Kernel Subsystem
 
 [![ZeroPlatform Tier](https://img.shields.io/badge/ZeroPlatform-Tier%201%20(Compute%20%26%20System)-4f46e5.svg)](https://github.com/kzxl/ZeroPlatform)
-[![NuGet Version](https://img.shields.io/badge/nuget-v1.1.0-blue.svg)](https://www.nuget.org/packages/ZeroSystem.Core/)
+[![NuGet Version](https://img.shields.io/badge/nuget-v1.2.0-blue.svg)](https://www.nuget.org/packages/ZeroSystem.Core/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Dependencies: 0](https://img.shields.io/badge/Dependencies-0%20External-brightgreen.svg)]()
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)]()
