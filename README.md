@@ -14,8 +14,16 @@
 
 | Component | Description |
 | :--- | :--- |
-| **`NativeMethods`** | Centralized, hardened Win32 P/Invoke declarations for `Kernel32`, `User32`, `Advapi32`, `Ntdll`, `Shell32`, and `DwmApi`. |
-| **`DosDeviceManager`** | High-level MS-DOS device mapping (`DefineDosDevice`). Mounts VSS Shadow Copies (`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy{N}`) to unused drive letters (`Z:`) and cleanly unmounts them. |
+| **`NativeMethods`** | Centralized, hardened Win32 P/Invoke declarations for `Kernel32`, `User32`, `Advapi32`, `Ntdll`, `Shell32`, `DwmApi`, `RstrtMgr`, and `ShCore`. |
+| **`StartupManager`** | Cross-platform application autostart: Windows `HKCU\...\Run` & `schtasks` SYSTEM boot service, Linux `~/.config/autostart` & `systemd`, macOS `LaunchAgents`, with Win32 console hiding. |
+| **`FileLockManager`** | Identifies processes and services locking files or folders via the Windows Restart Manager API (`rstrtmgr.dll`) without external tools. |
+| **`SmbiosReader`** | Sub-millisecond (&lt; 0.1ms) zero-WMI extraction of Motherboard Serial, System UUID, and BIOS metadata via raw `GetSystemFirmwareTable('RSMB')`. |
+| **`DisplayManager`** | Multi-monitor enumeration, work areas, per-monitor DPI scaling factors (100%, 125%, 150%, 200%), and virtual desktop bounding box. |
+| **`BatteryTelemetry`** | Battery and power telemetry (`GetSystemPowerStatus`): battery percentage, AC online status, charging state, estimated run-time. |
+| **`AppInstanceManager`** | Single-instance application coordinator via named system `Mutex` with automatic foreground window activation of existing instances. |
+| **`WindowsServiceManager`** | Native Windows Service Controller (`Advapi32.dll`): query service status, check existence, start and stop services without `System.ServiceProcess`. |
+| **`HardwareTelemetry`** | Real-time CPU usage (`GetSystemTimes`), RAM (`GlobalMemoryStatusEx`), dedicated/shared GPU memory (`DXGI`), drive geometry, and NICs. |
+| **`DosDeviceManager`** | High-level MS-DOS device mapping (`DefineDosDevice`). Mounts VSS Shadow Copies (`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy{N}`) to drive letters (`Z:`). |
 | **`ProcessGuard`** | System privileges escalation (`SeBackupPrivilege`, `SeRestorePrivilege`, `SeProfileSingleProcessPrivilege`), safe PID detection, and foreground window querying. |
 | **`MemoryKernel`** | Deep RAM optimization via undocumented `NtSetSystemInformation` (PurgeStandbyList = 4, SystemMemoryList = 80) and process working set trimming. |
 | **`UnsafeFileStreamFactory`** | Opens permissive non-locking file streams (`FileShare.ReadWrite \| FileShare.Delete`) to inspect locked files without sharing violations. |
@@ -48,10 +56,47 @@ if (DosDeviceManager.TryMountDevice(@"\\?\GLOBALROOT\Device\HarddiskVolumeShadow
 ```csharp
 using ZeroSystem;
 
-if (ProcessGuard.EnablePrivilege(ProcessGuard.SeProfileSingleProcessPrivilege))
+if (ProcessGuard.TryEnablePrivilege(NativeMethods.SE_PROFILE_SINGLE_PROCESS_NAME))
 {
     bool success = MemoryKernel.PurgeStandbyList();
     Console.WriteLine($"Standby List Purged: {success}");
+}
+```
+
+### Example 3: Detect Locking Processes (Restart Manager)
+```csharp
+using ZeroSystem;
+
+var lockers = FileLockManager.GetLockingProcesses(@"C:\Program Files\App\locked.dll");
+foreach (var proc in lockers)
+{
+    Console.WriteLine($"Locked by PID {proc.ProcessId}: {proc.ProcessName} ({proc.ApplicationType})");
+}
+```
+
+### Example 4: Sub-Millisecond Hardware UUID (Zero-WMI SMBIOS)
+```csharp
+using ZeroSystem;
+
+string uuid = SmbiosReader.GetSystemUuid();
+string boardSerial = SmbiosReader.GetMotherboardSerial();
+Console.WriteLine($"Hardware Fingerprint: UUID={uuid}, Motherboard={boardSerial}");
+```
+
+### Example 5: Single-Instance Mutex & Window Activation
+```csharp
+using ZeroSystem;
+
+if (!AppInstanceManager.TryAcquireSingleInstance("ZeroUniverse.ZProbe", out var appLock))
+{
+    Console.WriteLine("Another instance is already running. Activating existing window...");
+    AppInstanceManager.BringProcessToForeground(Process.GetProcessesByName("ZProbe")[0].Id);
+    return;
+}
+
+using (appLock)
+{
+    // Run main application loop
 }
 ```
 
