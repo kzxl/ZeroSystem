@@ -1,13 +1,13 @@
 # ⚡ ZeroSystem: Sovereign Windows Native & Kernel Subsystem
 
 [![ZeroPlatform Tier](https://img.shields.io/badge/ZeroPlatform-Tier%201%20(Compute%20%26%20System)-4f46e5.svg)](https://github.com/kzxl/ZeroPlatform)
-[![NuGet Version](https://img.shields.io/badge/nuget-v1.2.0-blue.svg)](https://www.nuget.org/packages/ZeroSystem.Core/)
+[![NuGet Version](https://img.shields.io/badge/nuget-v1.4.0-blue.svg)](https://www.nuget.org/packages/ZeroSystem.Core/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Dependencies: 0](https://img.shields.io/badge/Dependencies-0%20External-brightgreen.svg)]()
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)]()
-[![Tests: 26 Passed](https://img.shields.io/badge/Tests-26%20Passed%20(100%25)-brightgreen.svg)]()
+[![Tests: 33 Passed](https://img.shields.io/badge/Tests-33%20Passed%20(100%25)-brightgreen.svg)]()
 
-**ZeroSystem** (`ZeroSystem.Core`) is the sovereign Windows Native, Kernel P/Invoke, DWM Desktop, and OS Internals Subsystem of the **ZeroPlatform** / **Zero Universe** ecosystem. It provides type-safe, resource-managed wrappers around low-level Win32, NTDLL, and Kernel APIs with **zero external dependencies** (100% pure C# BCL).
+**ZeroSystem** (`ZeroSystem.Core`) is the sovereign Windows Native, Kernel P/Invoke, DWM Desktop, Off-Heap Memory, and OS Internals Subsystem of the **ZeroPlatform** / **Zero Universe** ecosystem. It provides type-safe, resource-managed wrappers around low-level Win32, NTDLL, and Kernel APIs with **zero external dependencies** (100% pure C# BCL).
 
 ---
 
@@ -15,6 +15,8 @@
 
 | Component | Description |
 | :--- | :--- |
+| **`OffHeapMemoryStore`** | Zero-GC unmanaged memory block store with 64-bit ABA-protected handles (`OffHeapHandle`), zero-copy ref/span reads, and physical RAM pinning (`VirtualLock`). |
+| **`OffHeapCircularTelemetryBuffer<T>`** | Unmanaged sliding-window circular buffer for high-frequency telemetry and time-series sensor points with zero managed GC churn. |
 | **`NativeMethods`** | Centralized, hardened Win32 P/Invoke declarations for `Kernel32`, `User32`, `Advapi32`, `Ntdll`, `Shell32`, `DwmApi`, `RstrtMgr`, `ShCore`, `IpHlpApi`, and `Avrt`. |
 | **`StorageHardwareKernel`** | Low-level storage IOCTLs: SSD vs HDD seek penalty detection, NVMe/SATA bus type, and disk geometry without WMI. |
 | **`NetworkConnectionTracker`** | Maps every active IPv4/IPv6 TCP connection and UDP listening endpoint to its owning Process ID (PID) via IP Helper APIs. |
@@ -154,6 +156,49 @@ using (ThreadAffinityKernel.EnableMultimediaScheduling("Pro Audio"))
     // Real-time vision inspection / DSP audio loop
 }
 ```
+
+### Example 10: Off-Heap GC-Free Memory Store (ABA Protected)
+```csharp
+using ZeroSystem.Memory;
+
+// Initialize 64MB unmanaged off-heap store
+using var store = new OffHeapMemoryStore(initialCapacityBytes: 64 * 1024 * 1024);
+
+// Allocate 4KB unmanaged block (zero GC pause)
+OffHeapHandle handle = store.Allocate(4096);
+
+// Zero-copy span write
+Span<byte> span = store.GetSpan(handle);
+span[0] = 0xAA;
+
+// Free block safely (recycled without fragmentation)
+store.Free(handle);
+```
+
+### Example 11: Off-Heap Circular Telemetry Buffer
+```csharp
+using ZeroSystem.Memory;
+
+// Create 10,000-sample sliding window buffer in unmanaged RAM
+using var telemetryBuffer = new OffHeapCircularTelemetryBuffer<double>(capacity: 10_000);
+
+for (int i = 0; i < 50_000; i++)
+{
+    telemetryBuffer.Push(25.4 + (i * 0.01));
+}
+
+// Zero-GC snapshot read
+int count = telemetryBuffer.ReadLatest(stackalloc double[100]);
+```
+
+---
+
+## 📜 Release History
+
+| Version | Release Date | Key Milestones & Highlights |
+| :--- | :---: | :--- |
+| **`v1.4.0`** | 2026-09-29 | **Off-Heap GC-Free Memory Store & OS RAM Pinning**:<br/>• Added `OffHeapMemoryStore`: Unmanaged memory store with 64-bit ABA-protected handles and zero-copy ref/span reads.<br/>• Added `OffHeapCircularTelemetryBuffer<T>`: Zero-GC unmanaged sliding-window circular buffer.<br/>• Native Windows OS physical RAM pinning via `VirtualLock`.<br/>• 33 unit and system tests passing (100% success rate). |
+| **`v1.2.0`** | 2026-09-21 | **Kernel Hardware Diagnostics & Thread Pinning**:<br/>• Added `ThreadAffinityKernel` & MMCSS multimedia scheduling.<br/>• Added `StorageHardwareKernel` for SSD/NVMe detection without WMI.<br/>• Added `NetworkConnectionTracker` IP Helper connection inspection.<br/>• 26 automated tests passing (100% success rate). |
 
 ---
 
