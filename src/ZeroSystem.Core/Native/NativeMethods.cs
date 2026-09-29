@@ -373,4 +373,290 @@ internal static class NativeMethods
     [DllImport("advapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool CloseServiceHandle(IntPtr hSCObject);
+
+    // Raw File / Physical Drive
+    public const uint GENERIC_READ = 0x80000000;
+    public const uint GENERIC_WRITE = 0x40000000;
+    public const uint FILE_SHARE_READ = 0x00000001;
+    public const uint FILE_SHARE_WRITE = 0x00000002;
+    public const uint OPEN_EXISTING = 3;
+    public static readonly IntPtr INVALID_HANDLE_VALUE = new(-1);
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern IntPtr CreateFile(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeviceIoControl(
+        IntPtr hDevice,
+        uint dwIoControlCode,
+        IntPtr lpInBuffer,
+        uint nInBufferSize,
+        IntPtr lpOutBuffer,
+        uint nOutBufferSize,
+        out uint lpBytesReturned,
+        IntPtr lpOverlapped);
+
+    // IOCTL Storage Properties
+    public const uint IOCTL_STORAGE_QUERY_PROPERTY = 0x002D1400;
+    public const uint IOCTL_DISK_GET_DRIVE_GEOMETRY_EX = 0x000700A0;
+
+    public enum STORAGE_PROPERTY_ID
+    {
+        StorageDeviceProperty = 0,
+        StorageAdapterProperty = 1,
+        StorageDeviceIdProperty = 2,
+        StorageDeviceUniqueIdProperty = 3,
+        StorageDeviceWriteCacheProperty = 4,
+        StorageMiniportProperty = 5,
+        StorageAccessAlignmentProperty = 6,
+        StorageDeviceSeekPenaltyProperty = 7,
+        StorageDeviceTrimProperty = 8
+    }
+
+    public enum STORAGE_QUERY_TYPE
+    {
+        PropertyStandardQuery = 0,
+        PropertyExistsQuery = 1,
+        PropertyMaskQuery = 2,
+        PropertyQueryMaxDefined = 3
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct STORAGE_PROPERTY_QUERY
+    {
+        public STORAGE_PROPERTY_ID PropertyId;
+        public STORAGE_QUERY_TYPE QueryType;
+        public byte AdditionalParameters;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DEVICE_SEEK_PENALTY_DESCRIPTOR
+    {
+        public uint Version;
+        public uint Size;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool IncursSeekPenalty;
+    }
+
+    public enum STORAGE_BUS_TYPE
+    {
+        BusTypeUnknown = 0x00,
+        BusTypeScsi = 0x01,
+        BusTypeAtapi = 0x02,
+        BusTypeAta = 0x03,
+        BusType1394 = 0x04,
+        BusTypeSsa = 0x05,
+        BusTypeFibre = 0x06,
+        BusTypeUsb = 0x07,
+        BusTypeRAID = 0x08,
+        BusTypeiScsi = 0x09,
+        BusTypeSas = 0x0A,
+        BusTypeSata = 0x0B,
+        BusTypeSd = 0x0C,
+        BusTypeMmc = 0x0D,
+        BusTypeVirtual = 0x0E,
+        BusTypeFileBackedVirtual = 0x0F,
+        BusTypeSpaces = 0x10,
+        BusTypeNvme = 0x11,
+        BusTypeSCM = 0x12,
+        BusTypeUfs = 0x13,
+        BusTypeMax = 0x14
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct STORAGE_DEVICE_DESCRIPTOR
+    {
+        public uint Version;
+        public uint Size;
+        public byte DeviceType;
+        public byte DeviceTypeModifier;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool RemovableMedia;
+        [MarshalAs(UnmanagedType.I1)]
+        public bool CommandQueueing;
+        public uint VendorIdOffset;
+        public uint ProductIdOffset;
+        public uint ProductRevisionOffset;
+        public uint SerialNumberOffset;
+        public STORAGE_BUS_TYPE BusType;
+        public uint RawPropertiesLength;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISK_GEOMETRY
+    {
+        public long Cylinders;
+        public int MediaType;
+        public uint TracksPerCylinder;
+        public uint SectorsPerTrack;
+        public uint BytesPerSector;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISK_GEOMETRY_EX
+    {
+        public DISK_GEOMETRY Geometry;
+        public long DiskSize;
+        public byte Data;
+    }
+
+    // IP Helper (Extended TCP/UDP Tables with PID)
+    public const int AF_INET = 2;
+    public const int AF_INET6 = 23;
+    public const int TCP_TABLE_OWNER_PID_ALL = 5;
+    public const int UDP_TABLE_OWNER_PID = 1;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MIB_TCPROW_OWNER_PID
+    {
+        public uint dwState;
+        public uint dwLocalAddr;
+        public uint dwLocalPort;
+        public uint dwRemoteAddr;
+        public uint dwRemotePort;
+        public uint dwOwningPid;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MIB_UDPROW_OWNER_PID
+    {
+        public uint dwLocalAddr;
+        public uint dwLocalPort;
+        public uint dwOwningPid;
+    }
+
+    [DllImport("iphlpapi.dll", SetLastError = true)]
+    public static extern uint GetExtendedTcpTable(
+        IntPtr pTcpTable,
+        ref uint pdwSize,
+        [MarshalAs(UnmanagedType.Bool)] bool bOrder,
+        uint ulAf,
+        int TableClass,
+        uint Reserved = 0);
+
+    [DllImport("iphlpapi.dll", SetLastError = true)]
+    public static extern uint GetExtendedUdpTable(
+        IntPtr pUdpTable,
+        ref uint pdwSize,
+        [MarshalAs(UnmanagedType.Bool)] bool bOrder,
+        uint ulAf,
+        int TableClass,
+        uint Reserved = 0);
+
+    // Deep NTDLL Process Control
+    public const int SystemProcessInformation = 5;
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    public static extern int NtQuerySystemInformation(
+        int SystemInformationClass,
+        IntPtr SystemInformation,
+        uint SystemInformationLength,
+        out uint ReturnLength);
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    public static extern int NtSuspendProcess(IntPtr processHandle);
+
+    [DllImport("ntdll.dll", SetLastError = true)]
+    public static extern int NtResumeProcess(IntPtr processHandle);
+
+    // Thread Affinity & MMCSS
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetProcessAffinityMask(IntPtr hProcess, UIntPtr dwProcessAffinityMask);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern UIntPtr SetThreadAffinityMask(IntPtr hThread, UIntPtr dwThreadAffinityMask);
+
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetCurrentThread();
+
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetCurrentProcess();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetThreadPriority(IntPtr hThread, int nPriority);
+
+    public const int THREAD_PRIORITY_NORMAL = 0;
+    public const int THREAD_PRIORITY_ABOVE_NORMAL = 1;
+    public const int THREAD_PRIORITY_HIGHEST = 2;
+    public const int THREAD_PRIORITY_TIME_CRITICAL = 15;
+
+    [DllImport("avrt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr AvSetMmThreadCharacteristics(string TaskName, out uint TaskIndex);
+
+    [DllImport("avrt.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AvRevertMmThreadCharacteristics(IntPtr AvrtHandle);
+
+    // Memory Lock & Large Pages
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool VirtualLock(IntPtr lpAddress, UIntPtr dwSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool VirtualUnlock(IntPtr lpAddress, UIntPtr dwSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern UIntPtr GetLargePageMinimum();
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WIN32_MEMORY_RANGE_ENTRY
+    {
+        public IntPtr VirtualAddress;
+        public UIntPtr NumberOfBytes;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PrefetchVirtualMemory(
+        IntPtr hProcess,
+        UIntPtr NumberOfEntries,
+        [In] WIN32_MEMORY_RANGE_ENTRY[] VirtualAddresses,
+        uint Flags);
+
+    // Toolhelp32 Snapshot & Process Control
+    public const uint TH32CS_SNAPPROCESS = 0x00000002;
+    public const uint PROCESS_SUSPEND_RESUME = 0x0800;
+    public const uint PROCESS_SET_INFORMATION = 0x0200;
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct PROCESSENTRY32
+    {
+        public uint dwSize;
+        public uint cntUsage;
+        public uint th32ProcessID;
+        public UIntPtr th32DefaultHeapID;
+        public uint th32ModuleID;
+        public uint cntThreads;
+        public uint th32ParentProcessID;
+        public int pcPriClassBase;
+        public uint dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szExeFile;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenProcess(uint processAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint processId);
 }
